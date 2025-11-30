@@ -16,7 +16,8 @@ import {
   Lock, 
   User as UserIcon, 
   ArrowUpDown, 
-  Download
+  Download,
+  List
 } from 'lucide-react';
 import { DbProvider, useDb } from './services/db';
 import { Material, RequestStatus, User } from './types';
@@ -438,6 +439,133 @@ const InventoryManager = () => {
   );
 };
 
+const UserInventory = () => {
+  const { materials } = useDb();
+  
+  // Sorting and Filtering State
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Material; direction: 'asc' | 'desc' } | null>(null);
+  const [filters, setFilters] = useState({ name: '', stock: '', unit: '' });
+  
+  // Data Processing
+  const processedMaterials = useMemo(() => {
+    let result = [...materials];
+
+    // Filter
+    if (filters.name) result = result.filter(m => m.name.toLowerCase().includes(filters.name.toLowerCase()));
+    if (filters.stock) result = result.filter(m => m.stock.toString().includes(filters.stock));
+    if (filters.unit) result = result.filter(m => m.unit.toLowerCase().includes(filters.unit.toLowerCase()));
+
+    // Sort
+    if (sortConfig) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [materials, sortConfig, filters]);
+
+  const handleSort = (key: keyof Material) => {
+    setSortConfig(current => {
+      if (!current || current.key !== key) return { key, direction: 'asc' };
+      if (current.direction === 'asc') return { key, direction: 'desc' };
+      return null;
+    });
+  };
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800">รายการวัสดุทั้งหมด (Inventory)</h2>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {/* ID Column */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => handleSort('id')} className="flex items-center gap-1 hover:text-gray-700 font-bold">
+                      รหัส <ArrowUpDown size={12} />
+                    </button>
+                  </div>
+                </th>
+                
+                {/* Name Column */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-700 font-bold">
+                      ชื่อวัสดุ <ArrowUpDown size={12} />
+                    </button>
+                    <input 
+                      type="text" 
+                      placeholder="ค้นหาชื่อ..." 
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-normal"
+                      value={filters.name}
+                      onChange={(e) => handleFilterChange('name', e.target.value)}
+                    />
+                  </div>
+                </th>
+
+                {/* Stock Column */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                   <div className="flex flex-col gap-2">
+                    <button onClick={() => handleSort('stock')} className="flex items-center gap-1 hover:text-gray-700 font-bold">
+                      คงเหลือ <ArrowUpDown size={12} />
+                    </button>
+                    <input 
+                      type="text" 
+                      placeholder="ค้นหา..." 
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-normal"
+                      value={filters.stock}
+                      onChange={(e) => handleFilterChange('stock', e.target.value)}
+                    />
+                  </div>
+                </th>
+
+                {/* Unit Column */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                   <div className="flex flex-col gap-2">
+                    <button onClick={() => handleSort('unit')} className="flex items-center gap-1 hover:text-gray-700 font-bold">
+                      หน่วย <ArrowUpDown size={12} />
+                    </button>
+                    <input 
+                      type="text" 
+                      placeholder="ค้นหา..." 
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-normal"
+                      value={filters.unit}
+                      onChange={(e) => handleFilterChange('unit', e.target.value)}
+                    />
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {processedMaterials.map((m) => (
+                <tr key={m.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{m.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{m.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={`${m.stock < 10 ? 'text-red-600 font-bold' : ''}`}>{m.stock}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{m.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {processedMaterials.length === 0 && <div className="p-6 text-center text-gray-500">ไม่พบข้อมูลที่ค้นหา</div>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RequestQueue = () => {
   const { requests, users, materials, updateRequestStatus } = useDb();
   
@@ -833,6 +961,7 @@ const Sidebar = () => {
 
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 pl-4">พนักงาน (User)</div>
         <NavItem to="/my-portal" icon={PlusCircle} label="เบิกวัสดุ" />
+        <NavItem to="/user-inventory" icon={List} label="รายการวัสดุ" />
       </nav>
 
       {/* User Info & Logout */}
@@ -869,6 +998,7 @@ const MainLayout = () => {
           <Route path="/requests" element={<RequestQueue />} />
           <Route path="/users" element={<UserManager />} />
           <Route path="/my-portal" element={<UserPortal />} />
+          <Route path="/user-inventory" element={<UserInventory />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
